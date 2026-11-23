@@ -12,7 +12,7 @@ jobs:
       - name: Check KVM and install QEMU + Tailscale
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-kvm curl
+          sudo apt-get install -y qemu-system-x86 curl
           curl -fsSL https://tailscale.com/install.sh | sh
 
       - name: Connect to Tailscale
