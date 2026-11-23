@@ -1,3 +1,4 @@
+
 name: Start Windows Desktop RDP with Tailscale
 
 on:
@@ -13,12 +14,17 @@ jobs:
         shell: powershell
         run: |
           $password = "TempPass123!"
-          net user runneradmin $password /add
-          net localgroup Administrators runneradmin /add
+          $exists = net user runneradmin 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            net user runneradmin $password /add
+          } else {
+            net user runneradmin $password
+          }
+          net localgroup Administrators runneradmin /add 2>$null
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          Set-Service -Name "Audiosrv" -StartupType Automatic
-          Start-Service -Name "Audiosrv"
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+          Set-Service -Name "Audiosrv" -StartupType Automatic -ErrorAction SilentlyContinue
+          Start-Service -Name "Audiosrv" -ErrorAction SilentlyContinue
           Write-Host "Kullanici Adi: runneradmin | Sifre: $password"
 
       - name: Install Tailscale
