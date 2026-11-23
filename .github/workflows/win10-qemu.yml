@@ -1,32 +1,44 @@
-name: Start Real Windows 10 (QEMU) with Tailscale
+name: Start Windows Desktop RDP with Tailscale
 
 on:
   workflow_dispatch:
 
 jobs:
-  win10-qemu:
-    runs-on: ubuntu-latest
+  rdp-session:
+    runs-on: windows-latest
     timeout-minutes: 360
 
     steps:
-      - name: Check KVM and install QEMU + Tailscale
+      - name: Enable RDP and Desktop Experience
+        shell: powershell
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 curl
-          curl -fsSL https://tailscale.com/install.sh | sh
+          $password = "TempPass123!"
+          net user runneradmin $password /add
+          net localgroup Administrators runneradmin /add
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-Service -Name "Audiosrv" -StartupType Automatic
+          Start-Service -Name "Audiosrv"
+          Write-Host "Kullanici Adi: runneradmin | Sifre: $password"
 
-      - name: Connect to Tailscale
+      - name: Install Tailscale
+        shell: powershell
+        run: |
+          winget install --id Tailscale.Tailscale -e --silent --accept-package-agreements --accept-source-agreements
+          $env:Path += ";C:\Program Files\Tailscale"
+          Start-Service Tailscale -ErrorAction SilentlyContinue
+
+      - name: Connect to Tailscale network
+        shell: powershell
         env:
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
         run: |
-          sudo tailscaled --tun=userspace-networking --socks5-server=localhost:1055 &
-          sleep 3
-          sudo tailscale up --authkey="${TS_AUTHKEY}" --hostname=gh-win10-qemu
-          sudo tailscale ip -4
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=$env:TS_AUTHKEY --hostname=gh-win-desktop
+          & "C:\Program Files\Tailscale\tailscale.exe" ip -4
 
-      - name: Download Windows 10 image and boot QEMU
+      - name: Keep session alive
+        shell: powershell
         run: |
-          # Buraya kendi hazır/önceden hazırlanmış qcow2 veya raw Windows 10 disk imajının indirme bağlantısını koymalısın
-          # Örnek: curl -L -o win10.qcow2 "SENIN_IMAC_URL_ADRESIN"
-          echo "Windows 10 qcow2 imajını indirip QEMU ile başlatma adımı"
-          # sudo qemu-system-x86_64 -enable-kvm -m 4G -smp 2 -hda win10.qcow2 -vnc :0
+          while ($true) {
+            Start-Sleep -Seconds 60
+          }
